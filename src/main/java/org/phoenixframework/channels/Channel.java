@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -17,7 +18,10 @@ import java.util.logging.Logger;
  */
 public class Channel {
 
-    private Logger logger = Logger.getLogger(Channel.class.getSimpleName());
+    private Logger logger = new LoggerBuilder()
+            .setTag(Channel.class.getName())
+            .setLevel(Level.WARNING)
+            .build();
 
     private static final long DEFAULT_TIMEOUT = 5000;
 

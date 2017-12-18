@@ -9,11 +9,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimerTask;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Push {
 
-    private Logger logger = Logger.getLogger(Push.class.getSimpleName());
+    private Logger logger = new LoggerBuilder()
+            .setTag(Push.class.getName())
+            .setLevel(Level.WARNING)
+            .build();
 
     private class TimeoutHook {
 
