@@ -21,8 +21,7 @@ allprojects {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.fasterxml.jackson.core:jackson-databind:2.8.3'
-    compile 'com.squareup.okhttp3:okhttp:3.6.0'
-    compile 'org.slf4j:slf4j-api:1.7.22'
+    compile 'com.squareup.okhttp3:okhttp:3.9.1'
     testCompile 'org.codehaus.groovy:groovy-all:2.3.10'
     testCompile "org.spockframework:spock-core:1.0-groovy-2.3"
 
@@ -30,7 +29,7 @@ dependencies {
     testRuntime "org.hamcrest:hamcrest-core:1.3" // only necessary if Hamcrest matchers are used
     testRuntime "cglib:cglib-nodep:3.1"
     // allows mocking of classes (in addition to interfaces)
-    testRuntime "org.objenesis:objenesis:2.1"
+    testRuntime "org.objenesis:objenesis:2.5"
     // allows mocking of classes without default constructor (together with CGLIB)
 }
 

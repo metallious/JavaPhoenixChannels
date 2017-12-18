@@ -16,9 +16,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -30,13 +27,11 @@ import okio.ByteString;
 
 public class Socket {
 
-    private static final Logger log = LoggerFactory.getLogger(Socket.class);
-
     public class PhoenixWSListener extends WebSocketListener {
 
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
-            log.trace("WebSocket onOpen: {}", webSocket);
+            System.out.println("WebSocket onOpen: " + webSocket);
             Socket.this.webSocket = webSocket;
             cancelReconnectTimer();
 
@@ -51,13 +46,13 @@ public class Socket {
 
         @Override
         public void onMessage(WebSocket webSocket, String text) {
-            log.trace("onMessage: {}", text);
+            System.out.println("onMessage: " + text);
 
             try {
                 final Envelope envelope = objectMapper.readValue(text, Envelope.class);
                 synchronized (channels) {
                     for (final Channel channel : channels) {
-                        if (channel.isMember(envelope.getTopic())) {
+                        if (channel.isMember(envelope)) {
                             channel.trigger(envelope.getEvent(), envelope);
                         }
                     }
@@ -67,7 +62,7 @@ public class Socket {
                     callback.onMessage(envelope);
                 }
             } catch (IOException e) {
-                log.error("Failed to read message payload", e);
+                e.printStackTrace();
             }
         }
 
@@ -82,7 +77,7 @@ public class Socket {
 
         @Override
         public void onClosed(WebSocket webSocket, int code, String reason) {
-            log.trace("WebSocket onClose {}/{}", code, reason);
+            System.out.println("WebSocket onClose " + code + "/" + reason);
             Socket.this.webSocket = null;
 
             for (final ISocketCloseCallback callback : socketCloseCallbacks) {
@@ -92,7 +87,8 @@ public class Socket {
 
         @Override
         public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-            log.warn("WebSocket connection error", t);
+            System.out.println("WebSocket connection error");
+            t.printStackTrace();
             try {
                 //TODO if there are multiple errorCallbacks do we really want to trigger
                 //the same channel error callbacks multiple times?
@@ -145,10 +141,10 @@ public class Socket {
     private final LinkedBlockingQueue<RequestBody> sendBuffer = new LinkedBlockingQueue<>();
 
     private final Set<ISocketCloseCallback> socketCloseCallbacks = Collections
-        .newSetFromMap(new HashMap<ISocketCloseCallback, Boolean>());
+            .newSetFromMap(new HashMap<ISocketCloseCallback, Boolean>());
 
     private final Set<ISocketOpenCallback> socketOpenCallbacks = Collections
-        .newSetFromMap(new HashMap<ISocketOpenCallback, Boolean>());
+            .newSetFromMap(new HashMap<ISocketOpenCallback, Boolean>());
 
     private Timer timer = null;
 
@@ -165,7 +161,7 @@ public class Socket {
     }
 
     public Socket(final String endpointUri, final int heartbeatIntervalInMs) {
-        log.trace("PhoenixSocket({})", endpointUri);
+        System.out.println("PhoenixSocket("+endpointUri+")");
         this.endpointUri = endpointUri;
         this.heartbeatInterval = heartbeatIntervalInMs;
         this.timer = new Timer("Reconnect Timer for " + endpointUri);
@@ -179,7 +175,7 @@ public class Socket {
      * @return A Channel instance to be used for sending and receiving events for the topic
      */
     public Channel chan(final String topic, final JsonNode payload) {
-        log.trace("chan: {}, {}", topic, payload);
+        System.out.println("chan: " + topic+", " + payload);
         final Channel channel = new Channel(topic, payload, Socket.this);
         synchronized (channels) {
             channels.add(channel);
@@ -188,17 +184,17 @@ public class Socket {
     }
 
     public void connect() throws IOException {
-        log.trace("connect");
+        System.out.println("connect");
         disconnect();
         // No support for ws:// or ws:// in okhttp. See https://github.com/square/okhttp/issues/1652
         final String httpUrl = this.endpointUri.replaceFirst("^ws:", "http:")
-            .replaceFirst("^wss:", "https:");
+                .replaceFirst("^wss:", "https:");
         final Request request = new Request.Builder().url(httpUrl).build();
         webSocket = httpClient.newWebSocket(request, wsListener);
     }
 
     public void disconnect() throws IOException {
-        log.trace("disconnect");
+        System.out.println("disconnect");
         if (webSocket != null) {
             webSocket.close(1001 /*CLOSE_GOING_AWAY*/, "Disconnected by client");
         }
@@ -270,10 +266,11 @@ public class Socket {
         node.put("topic", envelope.getTopic());
         node.put("event", envelope.getEvent());
         node.put("ref", envelope.getRef());
+        node.put("join_ref", envelope.getJoinRef());
         node.set("payload", envelope.getPayload() == null ? objectMapper.createObjectNode() : envelope.getPayload());
         final String json = objectMapper.writeValueAsString(node);
 
-        log.trace("push: {}, isConnected:{}, JSON:{}", envelope, isConnected(), json);
+        System.out.println("push: " + envelope+", isConnected: " + isConnected()+", JSON: " + json);
 
         RequestBody body = RequestBody.create(MediaType.parse("text/xml"), json);
 
@@ -320,19 +317,16 @@ public class Socket {
     @Override
     public String toString() {
         return "PhoenixSocket{" +
-            "endpointUri='" + endpointUri + '\'' +
-            ", channels(" + channels.size() + ")=" + channels +
-            ", refNo=" + refNo +
-            ", webSocket=" + webSocket +
-            '}';
+                "endpointUri='" + endpointUri + '\'' +
+                ", channels(" + channels.size() + ")=" + channels +
+                ", refNo=" + refNo +
+                ", webSocket=" + webSocket +
+                '}';
     }
 
     synchronized String makeRef() {
-        int val = refNo++;
-        if (refNo == Integer.MAX_VALUE) {
-            refNo = 0;
-        }
-        return Integer.toString(val);
+        refNo = (refNo + 1) % Integer.MAX_VALUE;
+        return Integer.toString(refNo);
     }
 
     private void cancelHeartbeatTimer() {
@@ -365,11 +359,12 @@ public class Socket {
         Socket.this.reconnectTimerTask = new TimerTask() {
             @Override
             public void run() {
-                log.trace("reconnectTimerTask run");
+                System.out.println("reconnectTimerTask run");
                 try {
                     Socket.this.connect();
                 } catch (Exception e) {
-                    log.error("Failed to reconnect to " + Socket.this.wsListener, e);
+                    System.out.println("Failed to reconnect to");
+                    e.printStackTrace();
                 }
             }
         };
@@ -380,21 +375,22 @@ public class Socket {
         Socket.this.heartbeatTimerTask = new TimerTask() {
             @Override
             public void run() {
-                log.trace("heartbeatTimerTask run");
+                System.out.println("heartbeatTimberTask run");
                 if (Socket.this.isConnected()) {
                     try {
                         Envelope envelope = new Envelope("phoenix", "heartbeat",
-                            new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef());
+                                new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef(), null);
                         Socket.this.push(envelope);
                     } catch (Exception e) {
-                        log.error("Failed to send heartbeat", e);
+                        System.out.println("Failed to send heartbeat");
+                        e.printStackTrace();
                     }
                 }
             }
         };
 
         timer.schedule(Socket.this.heartbeatTimerTask, Socket.this.heartbeatInterval,
-            Socket.this.heartbeatInterval);
+                Socket.this.heartbeatInterval);
     }
 
     private void triggerChannelError() {

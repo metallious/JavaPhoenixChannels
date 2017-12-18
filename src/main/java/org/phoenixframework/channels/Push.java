@@ -9,12 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimerTask;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class Push {
-
-    private static final Logger log = LoggerFactory.getLogger(Push.class);
 
     private class TimeoutHook {
 
@@ -68,6 +63,8 @@ public class Push {
     private boolean sent = false;
 
     private final TimeoutHook timeoutHook;
+
+    private String ref;
 
     Push(final Channel channel, final String event, final JsonNode payload, final long timeout) {
         this.channel = channel;
@@ -130,6 +127,8 @@ public class Push {
         return payload;
     }
 
+    public String getRef() { return ref; }
+
     Map<String, List<IMessageCallback>> getRecHooks() {
         return recHooks;
     }
@@ -143,8 +142,8 @@ public class Push {
     }
 
     void send() throws IOException {
-        final String ref = channel.getSocket().makeRef();
-        log.trace("Push send, ref={}", ref);
+        this.ref = channel.getSocket().makeRef();
+        System.out.println("Push send, ref=" + ref);
 
         this.refEvent = Socket.replyEventName(ref);
         this.receivedEnvelope = null;
@@ -161,8 +160,15 @@ public class Push {
 
         this.startTimeout();
         this.sent = true;
-        final Envelope envelope = new Envelope(this.channel.getTopic(), this.event, this.payload, ref);
+        final Envelope envelope = new Envelope(this.channel.getTopic(), this.event, this.payload, this.ref, this.channel.joinRef());
         this.channel.getSocket().push(envelope);
+    }
+
+    private void reset() {
+        this.cancelRefEvent();
+        this.refEvent = null;
+        this.receivedEnvelope = null;
+        this.sent = false;
     }
 
     private void cancelRefEvent() {

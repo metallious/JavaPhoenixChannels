@@ -17,15 +17,19 @@ public class Envelope {
     @JsonProperty
     private String ref;
 
+    @JsonProperty
+    private String join_ref;
+
     @SuppressWarnings("unused")
     public Envelope() {
     }
 
-    public Envelope(final String topic, final String event, final JsonNode payload, final String ref) {
+    public Envelope(final String topic, final String event, final JsonNode payload, final String ref, final String join_ref) {
         this.topic = topic;
         this.event = event;
         this.payload = payload;
         this.ref = ref;
+        this.join_ref = join_ref;
     }
 
     public String getTopic() {
@@ -52,6 +56,17 @@ public class Envelope {
     }
 
     /**
+     * Helper to retrieve the value of "join_ref" from the payload
+     *
+     * @return The join_ref string or null if not found
+     */
+    public String getJoinRef() {
+        if (join_ref != null) return join_ref;
+        final JsonNode joinRefNode = payload.get("join_ref");
+        return joinRefNode != null ? joinRefNode.textValue() : null;
+    }
+
+    /**
      * Helper to retrieve the value of "status" from the payload
      *
      * @return The status string or null if not found
@@ -74,9 +89,9 @@ public class Envelope {
     @Override
     public String toString() {
         return "Envelope{" +
-            "topic='" + topic + '\'' +
-            ", event='" + event + '\'' +
-            ", payload=" + payload +
-            '}';
+                "topic='" + topic + '\'' +
+                ", event='" + event + '\'' +
+                ", payload=" + payload +
+                '}';
     }
 }
