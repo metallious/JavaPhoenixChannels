@@ -6,14 +6,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.logging.Logger;
 
 /**
  * Encapsulation of a Phoenix channel: a Socket, a topic and the channel's state.
  */
 public class Channel {
+
+    private Logger logger = Logger.getLogger(Channel.class.getSimpleName());
 
     private static final long DEFAULT_TIMEOUT = 5000;
 
@@ -107,8 +111,8 @@ public class Channel {
         boolean isLifecycleEvent = ChannelEvent.getEvent(event) != null;
 
         if (joinRef != null && isLifecycleEvent && joinRef != this.joinRef()) {
-            System.out.println("dropping outdated message topic: " + topic +
-                    ", event: " + event + ", joinRed: " + joinRef);
+            logger.info(String.format(Locale.US, "dropping outdated message topic: %s, event: %s, joinRed: %s",
+                    topic, event, joinRef));
             return false;
         }
 

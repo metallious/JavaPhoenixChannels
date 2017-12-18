@@ -6,10 +6,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TimerTask;
+import java.util.logging.Logger;
 
 public class Push {
+
+    private Logger logger = Logger.getLogger(Push.class.getSimpleName());
 
     private class TimeoutHook {
 
@@ -143,7 +147,7 @@ public class Push {
 
     void send() throws IOException {
         this.ref = channel.getSocket().makeRef();
-        System.out.println("Push send, ref=" + ref);
+        logger.info(String.format(Locale.US, "Push send, ref= %s", ref));
 
         this.refEvent = Socket.replyEventName(ref);
         this.receivedEnvelope = null;
