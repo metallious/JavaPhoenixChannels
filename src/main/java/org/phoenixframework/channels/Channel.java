@@ -20,7 +20,6 @@ public class Channel {
 
     private Logger logger = new LoggerBuilder()
             .setTag(Channel.class.getName())
-            .setLevel(Level.WARNING)
             .build();
 
     private static final long DEFAULT_TIMEOUT = 5000;

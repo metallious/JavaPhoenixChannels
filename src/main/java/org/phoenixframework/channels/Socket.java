@@ -32,7 +32,6 @@ public class Socket {
 
     private Logger logger = new LoggerBuilder()
             .setTag(Socket.class.getName())
-            .setLevel(Level.WARNING)
             .build();
 
     public class PhoenixWSListener extends WebSocketListener {

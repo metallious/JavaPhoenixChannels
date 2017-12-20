@@ -9,8 +9,10 @@ import java.util.logging.Logger;
 
 public class LoggerBuilder {
 
+    private static final Level DEFAULT_LOGGING_LEVEL = Level.ALL;
+
     private String tag = "print";
-    private Level level = Level.ALL;
+    private Level level = DEFAULT_LOGGING_LEVEL;
 
     public LoggerBuilder setTag(String tag) {
         this.tag = tag;

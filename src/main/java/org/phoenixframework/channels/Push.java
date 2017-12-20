@@ -16,7 +16,6 @@ public class Push {
 
     private Logger logger = new LoggerBuilder()
             .setTag(Push.class.getName())
-            .setLevel(Level.WARNING)
             .build();
 
     private class TimeoutHook {
