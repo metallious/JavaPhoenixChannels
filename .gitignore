@@ -5,3 +5,4 @@
 /.idea/encodings.xml
 .DS_Store
 /build
+*.iml
