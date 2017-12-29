@@ -32,9 +32,6 @@ dependencies {
     // allows mocking of classes (in addition to interfaces)
     testRuntime "org.objenesis:objenesis:2.5"
     // allows mocking of classes without default constructor (together with CGLIB)
-    compile 'com.google.code.gson:gson:2.8.2'
-    compile 'com.jakewharton.timber:timber:4.6.0'
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.10"
 }
 
 task javadocJar(type: Jar) {

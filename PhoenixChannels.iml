@@ -13,13 +13,14 @@
       </configuration>
     </facet>
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="3" platform="JVM 1.6" useProjectSettings="false">
+      <configuration version="3" platform="JVM 1.8" useProjectSettings="false">
         <compilerSettings />
         <compilerArguments>
           <option name="destination" value="$MODULE_DIR$/build/classes/kotlin/main" />
           <option name="noStdlib" value="true" />
           <option name="noReflect" value="true" />
           <option name="moduleName" value="PhoenixChannels" />
+          <option name="jvmTarget" value="1.8" />
           <option name="addCompilerBuiltIns" value="true" />
           <option name="loadBuiltInsFromDependencies" value="true" />
           <option name="languageVersion" value="1.2" />
@@ -54,8 +55,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" scope="PROVIDED" name="jackson-databind-2.8.3" level="project" />
     <orderEntry type="library" exported="" scope="PROVIDED" name="okhttp-3.9.1" level="project" />
-    <orderEntry type="library" exported="" scope="PROVIDED" name="gson-2.8.2" level="project" />
-    <orderEntry type="library" exported="" scope="PROVIDED" name="timber-4.6.0" level="project" />
     <orderEntry type="library" exported="" scope="PROVIDED" name="jackson-annotations-2.8.0" level="project" />
     <orderEntry type="library" exported="" scope="PROVIDED" name="jackson-core-2.8.3" level="project" />
     <orderEntry type="library" exported="" scope="PROVIDED" name="okio-1.13.0" level="project" />
@@ -66,6 +65,8 @@
     <orderEntry type="library" exported="" scope="TEST" name="cglib-nodep-3.1" level="project" />
     <orderEntry type="library" exported="" scope="TEST" name="objenesis-2.5" level="project" />
     <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0" level="project" />
+    <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0-javadoc" level="project" />
+    <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0-sources" level="project" />
     <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0" level="project" />
     <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0" level="project" />
     <orderEntry type="library" exported="" name="PhoenixChannels.PhoenixChannels-0.2.0" level="project" />
