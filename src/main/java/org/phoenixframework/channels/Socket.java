@@ -34,9 +34,6 @@ public class Socket {
             .setTag(Socket.class.getName())
             .build();
 
-    private int lastReceivedHeartbeatRef = -1;
-    private int lastSentHeartbeatRef = -1;
-
     public class PhoenixWSListener extends WebSocketListener {
 
         @Override
@@ -62,7 +59,7 @@ public class Socket {
                 // updating last message reference
                 if (envelope.getTopic().equalsIgnoreCase("phoenix")
                         && envelope.getEvent().equalsIgnoreCase("phx_reply")) {
-                    lastReceivedHeartbeatRef = Integer.parseInt(envelope.getRef());
+                    cancelHeartbeatCheckTimer();
                 }
                 synchronized (this) {
                     for (final Channel channel : channels) {
@@ -129,6 +126,8 @@ public class Socket {
 
     private static final int DEFAULT_HEARTBEAT_INTERVAL = 7000;
 
+    private static final int DEFAULT_HEARTBEAT_CHECK_INTERVAL = 30000;
+
     private final List<Channel> channels = new ArrayList<>();
 
     private String endpointUri = null;
@@ -138,6 +137,8 @@ public class Socket {
     private final int heartbeatInterval;
 
     private TimerTask heartbeatTimerTask = null;
+
+    private TimerTask checkReceivingHeartbeatTask = null;
 
     private final OkHttpClient httpClient = new OkHttpClient();
 
@@ -354,6 +355,12 @@ public class Socket {
         }
     }
 
+    private void cancelHeartbeatCheckTimer() {
+        if (Socket.this.checkReceivingHeartbeatTask != null) {
+            Socket.this.checkReceivingHeartbeatTask.cancel();
+        }
+    }
+
     private void flushSendBuffer() {
         while (this.isConnected() && !this.sendBuffer.isEmpty()) {
             final RequestBody body = this.sendBuffer.remove();
@@ -389,18 +396,11 @@ public class Socket {
             public void run() {
                 logger.log(Level.INFO, "heartbeatTimerTask run");
                 if (Socket.this.isConnected()) {
-                    int ref = Integer.parseInt(makeRef());
-                    if (lastReceivedHeartbeatRef != lastSentHeartbeatRef) {
-                        Socket.this.wsListener.onFailure(
-                                Socket.this.webSocket, new IOException(), null
-                        );
-                        return;
-                    }
-                    lastSentHeartbeatRef = ref;
-                    Envelope envelope = new Envelope("phoenix", "heartbeat",
-                            new ObjectNode(JsonNodeFactory.instance), Integer.toString(ref), null);
                     try {
+                        Envelope envelope = new Envelope("phoenix", "heartbeat",
+                                new ObjectNode(JsonNodeFactory.instance), makeRef(), null);
                         Socket.this.push(envelope);
+                        waitForAnswerOrFail();
                     } catch (IOException e) {
                         logger.log(Level.WARNING, "Failed to send heartbeat", e);
                     }
@@ -410,6 +410,21 @@ public class Socket {
 
         timer.schedule(Socket.this.heartbeatTimerTask, Socket.this.heartbeatInterval,
                 Socket.this.heartbeatInterval);
+
+    }
+
+    private void waitForAnswerOrFail() {
+        if (checkReceivingHeartbeatTask == null) {
+            Socket.this.checkReceivingHeartbeatTask = new TimerTask() {
+                @Override
+                public void run() {
+                    Socket.this.wsListener.onFailure(
+                            Socket.this.webSocket, new IOException(), null
+                    );
+                }
+            };
+            timer.schedule(Socket.this.checkReceivingHeartbeatTask, DEFAULT_HEARTBEAT_CHECK_INTERVAL);
+        }
     }
 
     private void triggerChannelError() {
