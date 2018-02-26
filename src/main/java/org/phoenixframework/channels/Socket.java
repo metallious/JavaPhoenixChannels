@@ -358,6 +358,7 @@ public class Socket {
     private void cancelHeartbeatCheckTimer() {
         if (Socket.this.checkReceivingHeartbeatTask != null) {
             Socket.this.checkReceivingHeartbeatTask.cancel();
+            Socket.this.checkReceivingHeartbeatTask = null;
         }
     }
 
