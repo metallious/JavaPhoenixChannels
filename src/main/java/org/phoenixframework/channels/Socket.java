@@ -41,6 +41,7 @@ public class Socket {
             logger.info(String.format("WebSocket onOpen: %s", webSocket));
             Socket.this.webSocket = webSocket;
             cancelReconnectTimer();
+            cancelHeartbeatCheckTimer();
 
             startHeartbeatTimer();
 
