@@ -34,6 +34,9 @@ public class Socket {
             .setTag(Socket.class.getName())
             .build();
 
+    private int lastReceivedHeartbeatRef = -1;
+    private int lastSentHeartbeatRef = -1;
+
     public class PhoenixWSListener extends WebSocketListener {
 
         @Override
@@ -56,7 +59,12 @@ public class Socket {
             logger.info(String.format("onMessage: %s", text));
             try {
                 final Envelope envelope = objectMapper.readValue(text, Envelope.class);
-                synchronized (channels) {
+                // updating last message reference
+                if (envelope.getTopic().equalsIgnoreCase("phoenix")
+                        && envelope.getEvent().equalsIgnoreCase("phx_reply")) {
+                    lastReceivedHeartbeatRef = Integer.parseInt(envelope.getRef());
+                }
+                synchronized (this) {
                     for (final Channel channel : channels) {
                         if (channel.isMember(envelope)) {
                             channel.trigger(envelope.getEvent(), envelope);
@@ -381,11 +389,19 @@ public class Socket {
             public void run() {
                 logger.log(Level.INFO, "heartbeatTimerTask run");
                 if (Socket.this.isConnected()) {
+                    int ref = Integer.parseInt(makeRef());
+                    if (lastReceivedHeartbeatRef != lastSentHeartbeatRef) {
+                        Socket.this.wsListener.onFailure(
+                                Socket.this.webSocket, new IOException(), null
+                        );
+                        return;
+                    }
+                    lastSentHeartbeatRef = ref;
+                    Envelope envelope = new Envelope("phoenix", "heartbeat",
+                            new ObjectNode(JsonNodeFactory.instance), Integer.toString(ref), null);
                     try {
-                        Envelope envelope = new Envelope("phoenix", "heartbeat",
-                                new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef(), null);
                         Socket.this.push(envelope);
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         logger.log(Level.WARNING, "Failed to send heartbeat", e);
                     }
                 }
