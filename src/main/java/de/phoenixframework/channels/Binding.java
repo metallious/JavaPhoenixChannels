@@ -1,4 +1,4 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
 
 class Binding {
     private final String event;

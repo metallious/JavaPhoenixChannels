@@ -1,4 +1,4 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
 
 /**
  * Created by Eoin on 24/04/2015.

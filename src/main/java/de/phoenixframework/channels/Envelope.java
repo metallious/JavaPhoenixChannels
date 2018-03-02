@@ -1,4 +1,4 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;

@@ -1,4 +1,6 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
+
+import android.os.Handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +36,8 @@ public class Socket {
             .setTag(Socket.class.getName())
             .build();
 
+    private static final Object lock = new Object();
+
     public class PhoenixWSListener extends WebSocketListener {
 
         @Override
@@ -53,29 +57,36 @@ public class Socket {
         }
 
         @Override
-        public void onMessage(WebSocket webSocket, String text) {
-            logger.info(String.format("onMessage: %s", text));
-            try {
-                final Envelope envelope = objectMapper.readValue(text, Envelope.class);
-                // updating last message reference
-                if (envelope.getTopic().equalsIgnoreCase("phoenix")
-                        && envelope.getEvent().equalsIgnoreCase("phx_reply")) {
-                    cancelHeartbeatCheckTimer();
-                }
-                synchronized (this) {
-                    for (final Channel channel : channels) {
-                        if (channel.isMember(envelope)) {
-                            channel.trigger(envelope.getEvent(), envelope);
+        public void onMessage(WebSocket webSocket, final String text) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    logger.info(String.format("onMessage: %s", text));
+                    try {
+                        final Envelope envelope = objectMapper.readValue(text, Envelope.class);
+                        // updating last message reference
+                        if (envelope.getTopic().equalsIgnoreCase("phoenix")
+                                && envelope.getEvent().equalsIgnoreCase("phx_reply")) {
+                            cancelHeartbeatCheckTimer();
                         }
+
+                        synchronized (lock) {
+                            for (final Channel channel : channels) {
+                                if (channel.isMember(envelope)) {
+                                    channel.trigger(envelope.getEvent(), envelope);
+                                }
+                            }
+                        }
+
+                        for (final IMessageCallback callback : messageCallbacks) {
+                            callback.onMessage(envelope);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
+            });
 
-                for (final IMessageCallback callback : messageCallbacks) {
-                    callback.onMessage(envelope);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
 
         @Override
@@ -164,6 +175,8 @@ public class Socket {
     private Timer timer = null;
 
     private WebSocket webSocket = null;
+
+    private final Handler handler = new Handler();
 
     /**
      * Annotated WS Endpoint. Private member to prevent confusion with "onConn*" registration

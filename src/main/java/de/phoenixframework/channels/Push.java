@@ -1,4 +1,4 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimerTask;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Push {
