@@ -1,4 +1,6 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
+
+import android.util.Log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -10,7 +12,6 @@ import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -135,6 +136,7 @@ public class Channel {
                     "Tried to join multiple times. 'join' can only be invoked once per channel");
         }
         this.joinedOnce = true;
+        Log.d("DEBUG", "join: ");
         this.sendJoin();
         return this.joinPush;
     }
@@ -233,6 +235,7 @@ public class Channel {
     }
 
     private void rejoin() throws IOException {
+        Log.d("DEBUG", "rejoin");
         this.sendJoin();
         while (!this.pushBuffer.isEmpty()) {
             this.pushBuffer.removeFirst().send();

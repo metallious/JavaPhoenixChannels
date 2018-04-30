@@ -1,4 +1,7 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
+
+import android.os.Handler;
+import android.os.Message;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,8 +16,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,11 +29,13 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 import okio.ByteString;
 
-public class Socket {
+public class Socket extends Handler {
 
     private Logger logger = new LoggerBuilder()
             .setTag(Socket.class.getName())
             .build();
+
+    private static final Object lock = new Object();
 
     public class PhoenixWSListener extends WebSocketListener {
 
@@ -41,6 +44,7 @@ public class Socket {
             logger.info(String.format("WebSocket onOpen: %s", webSocket));
             Socket.this.webSocket = webSocket;
             cancelReconnectTimer();
+            cancelHeartbeatCheckTimer();
 
             startHeartbeatTimer();
 
@@ -52,11 +56,17 @@ public class Socket {
         }
 
         @Override
-        public void onMessage(WebSocket webSocket, String text) {
+        public void onMessage(WebSocket webSocket, final String text) {
             logger.info(String.format("onMessage: %s", text));
             try {
                 final Envelope envelope = objectMapper.readValue(text, Envelope.class);
-                synchronized (channels) {
+                // updating last message reference
+                if (envelope.getTopic().equalsIgnoreCase("phoenix")
+                        && envelope.getEvent().equalsIgnoreCase("phx_reply")) {
+                    cancelHeartbeatCheckTimer();
+                }
+
+                synchronized (lock) {
                     for (final Channel channel : channels) {
                         if (channel.isMember(envelope)) {
                             channel.trigger(envelope.getEvent(), envelope);
@@ -70,6 +80,7 @@ public class Socket {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
         }
 
         @Override
@@ -117,9 +128,17 @@ public class Socket {
         }
     }
 
-    public static final int RECONNECT_INTERVAL_MS = 5000;
+    private static final int MESSAGE_RECONNECT = 0;
+
+    private static final int MESSAGE_HEARTBEAT = 1;
+
+    private static final int MESSAGE_CHECK_HEARTBEAT = 2;
+
+    static final int RECONNECT_INTERVAL_MS = 5000;
 
     private static final int DEFAULT_HEARTBEAT_INTERVAL = 7000;
+
+    private static final int DEFAULT_HEARTBEAT_CHECK_INTERVAL = 30000;
 
     private final List<Channel> channels = new ArrayList<>();
 
@@ -129,8 +148,6 @@ public class Socket {
 
     private final int heartbeatInterval;
 
-    private TimerTask heartbeatTimerTask = null;
-
     private final OkHttpClient httpClient = new OkHttpClient();
 
     private final Set<IMessageCallback> messageCallbacks = Collections.newSetFromMap(new HashMap<IMessageCallback, Boolean>());
@@ -138,8 +155,6 @@ public class Socket {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private boolean reconnectOnFailure = true;
-
-    private TimerTask reconnectTimerTask = null;
 
     private int refNo = 1;
 
@@ -151,7 +166,7 @@ public class Socket {
     private final Set<ISocketOpenCallback> socketOpenCallbacks = Collections
             .newSetFromMap(new HashMap<ISocketOpenCallback, Boolean>());
 
-    private Timer timer = null;
+//    private Timer timer = null;
 
     private WebSocket webSocket = null;
 
@@ -169,7 +184,6 @@ public class Socket {
         logger.info(String.format(Locale.US, "PhoenixSocket(%s)", endpointUri));
         this.endpointUri = endpointUri;
         this.heartbeatInterval = heartbeatIntervalInMs;
-        this.timer = new Timer("Reconnect Timer for " + endpointUri);
     }
 
     /**
@@ -335,15 +349,15 @@ public class Socket {
     }
 
     private void cancelHeartbeatTimer() {
-        if (Socket.this.heartbeatTimerTask != null) {
-            Socket.this.heartbeatTimerTask.cancel();
-        }
+        removeMessages(MESSAGE_HEARTBEAT);
     }
 
     private void cancelReconnectTimer() {
-        if (Socket.this.reconnectTimerTask != null) {
-            Socket.this.reconnectTimerTask.cancel();
-        }
+        removeMessages(MESSAGE_RECONNECT);
+    }
+
+    private void cancelHeartbeatCheckTimer() {
+        removeMessages(MESSAGE_CHECK_HEARTBEAT);
     }
 
     private void flushSendBuffer() {
@@ -360,40 +374,19 @@ public class Socket {
     private void scheduleReconnectTimer() {
         cancelReconnectTimer();
         cancelHeartbeatTimer();
-
-        Socket.this.reconnectTimerTask = new TimerTask() {
-            @Override
-            public void run() {
-                logger.info("reconnectTimberTask run");
-                try {
-                    Socket.this.connect();
-                } catch (Exception e) {
-                    logger.log(Level.WARNING, "Failed to reconnect to", e);
-                }
-            }
-        };
-        timer.schedule(Socket.this.reconnectTimerTask, RECONNECT_INTERVAL_MS);
+        sendMessageDelayed(obtainMessage(MESSAGE_RECONNECT), RECONNECT_INTERVAL_MS);
     }
 
     private void startHeartbeatTimer() {
-        Socket.this.heartbeatTimerTask = new TimerTask() {
-            @Override
-            public void run() {
-                logger.log(Level.INFO, "heartbeatTimerTask run");
-                if (Socket.this.isConnected()) {
-                    try {
-                        Envelope envelope = new Envelope("phoenix", "heartbeat",
-                                new ObjectNode(JsonNodeFactory.instance), Socket.this.makeRef(), null);
-                        Socket.this.push(envelope);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to send heartbeat", e);
-                    }
-                }
-            }
-        };
+        sendMessageDelayed(
+                obtainMessage(MESSAGE_HEARTBEAT), Socket.this.heartbeatInterval
+        );
 
-        timer.schedule(Socket.this.heartbeatTimerTask, Socket.this.heartbeatInterval,
-                Socket.this.heartbeatInterval);
+    }
+
+    private void waitForAnswerOrFail() {
+        removeMessages(MESSAGE_CHECK_HEARTBEAT);
+        sendMessageDelayed(obtainMessage(MESSAGE_CHECK_HEARTBEAT), DEFAULT_HEARTBEAT_CHECK_INTERVAL);
     }
 
     private void triggerChannelError() {
@@ -406,5 +399,51 @@ public class Socket {
 
     static String replyEventName(final String ref) {
         return "chan_reply_" + ref;
+    }
+
+    @Override
+    public void handleMessage(Message msg) {
+        switch (msg.what) {
+            case MESSAGE_RECONNECT:
+                handleReconnect();
+                break;
+            case MESSAGE_HEARTBEAT:
+                handleHeartbeat();
+                break;
+            case MESSAGE_CHECK_HEARTBEAT:
+                handleKillSocket();
+                break;
+        }
+    }
+
+    private void handleKillSocket() {
+        Socket.this.wsListener.onFailure(
+                Socket.this.webSocket, new IOException(), null
+        );
+    }
+
+    private void handleHeartbeat() {
+        logger.log(Level.INFO, "heartbeatTimerTask run");
+        if (Socket.this.isConnected()) {
+            try {
+                Envelope envelope = new Envelope("phoenix", "heartbeat",
+                        new ObjectNode(JsonNodeFactory.instance), makeRef(), null);
+                Socket.this.push(envelope);
+                waitForAnswerOrFail();
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Failed to send heartbeat", e);
+            }
+        }
+        removeMessages(MESSAGE_HEARTBEAT);
+        sendMessageDelayed(obtainMessage(MESSAGE_HEARTBEAT), Socket.this.heartbeatInterval);
+    }
+
+    private void handleReconnect() {
+        logger.info("reconnectTimberTask run");
+        try {
+            Socket.this.connect();
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to reconnect to", e);
+        }
     }
 }

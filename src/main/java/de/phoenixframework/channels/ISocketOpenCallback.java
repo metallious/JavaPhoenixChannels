@@ -1,4 +1,4 @@
-package org.phoenixframework.channels;
+package de.phoenixframework.channels;
 
 public interface ISocketOpenCallback {
     void onOpen();
