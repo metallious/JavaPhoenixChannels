@@ -1,6 +1,7 @@
 package de.phoenixframework.channels;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -176,11 +177,12 @@ public class Socket extends Handler {
      */
     private final PhoenixWSListener wsListener = new PhoenixWSListener();
 
-    public Socket(final String endpointUri) throws IOException {
-        this(endpointUri, DEFAULT_HEARTBEAT_INTERVAL);
+    public Socket(final Looper looper, final String endpointUri) {
+        this(looper, endpointUri, DEFAULT_HEARTBEAT_INTERVAL);
     }
 
-    public Socket(final String endpointUri, final int heartbeatIntervalInMs) {
+    public Socket(final Looper looper, final String endpointUri, final int heartbeatIntervalInMs) {
+        super(looper);
         logger.info(String.format(Locale.US, "PhoenixSocket(%s)", endpointUri));
         this.endpointUri = endpointUri;
         this.heartbeatInterval = heartbeatIntervalInMs;
