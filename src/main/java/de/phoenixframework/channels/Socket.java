@@ -177,12 +177,11 @@ public class Socket extends Handler {
      */
     private final PhoenixWSListener wsListener = new PhoenixWSListener();
 
-    public Socket(final Looper looper, final String endpointUri) {
-        this(looper, endpointUri, DEFAULT_HEARTBEAT_INTERVAL);
+    public Socket(final String endpointUri) {
+        this(endpointUri, DEFAULT_HEARTBEAT_INTERVAL);
     }
 
-    public Socket(final Looper looper, final String endpointUri, final int heartbeatIntervalInMs) {
-        super(looper);
+    public Socket(final String endpointUri, final int heartbeatIntervalInMs) {
         logger.info(String.format(Locale.US, "PhoenixSocket(%s)", endpointUri));
         this.endpointUri = endpointUri;
         this.heartbeatInterval = heartbeatIntervalInMs;
